@@ -77,9 +77,7 @@ subroutine Charge_Transport
           MoCu0(j,i) = MoCu2(j-Nbas1,i-Nbas1)
        end do
     end do
-    write(*,*)
-    write(*,*) "Calculating Charge Transfer Integral..."
-    call Calculate_Charge_Transport(Nbas,Nbas1,MoCu0,Overlap,Hamilton)
+    call Calculate_Charge_Transport(Nbas,Nocc1,Nocc2,Nbas1,MoCu0,Overlap,Hamilton)
     !-------------------------------------------------------------------
     write(*,*)
     write(*,*) "Normal termination, the program have finished now !"
@@ -88,25 +86,59 @@ subroutine Charge_Transport
 
 end subroutine Charge_Transport
 !=======================================================================
-subroutine Calculate_Charge_Transport(Nbas,Nbas1,MoCu,Overlap,Hamilton)
+subroutine Calculate_Charge_Transport(Nbas,Nocc1,Nocc2,Nbas1,MoCu0, &
+                                      Overlap,Fock)
     
     implicit none
-    integer(kind=4) Nbas,Nbas1
-    integer(kind=4) i,j
-    real(kind=8) MoCu(Nbas,Nbas),Overlap(Nbas,Nbas)
-    real(kind=8) Hamilton(Nbas,Nbas)
+    integer(kind=4) Nbas,Nocc1,Nocc2,Nbas1,i,j
+    integer(kind=4) iStar,iEnd,jStar,jEnd,CTIout
+    real(kind=8) MoCu0(Nbas,Nbas),Overlap(Nbas,Nbas)
+    real(kind=8) Fock(Nbas,Nbas)
     real(kind=8) e1,e2,ee1,ee2,S12,J12,Je12
     real(kind=8) MTemp1(Nbas,Nbas),MTemp2(Nbas,Nbas)
     
-    call Ao2Mo1(Nbas,MoCu,Hamilton,MTemp1)
-    call Ao2Mo1(Nbas,MoCu,Overlap,MTemp2)
+    call Ao2Mo1(Nbas,MoCu0,Fock,MTemp1)
+    call Ao2Mo1(Nbas,MoCu0,Overlap,MTemp2)
     
-    write(100,*) "  MO1","  MO2"
-    write(100,*) "    e1(eV)","      e2(eV)","      J(meV)","         S"
-    write(100,*) "   ee1(eV)","     ee2(eV)","     Je(meV)","    Je(kcal/mol)"
+    write(*,*) " Press 1 to print important integrals."
+    write(*,*) " Press 2 to print all integrals."
+    read(*,*) CTIout
+    
+    write(*,*)
+    write(*,*) "Calculating Charge Transfer Integral..."
+    
     write(100,*)
-    do i = 1,Nbas1
-       do j = Nbas1+1,Nbas
+    write(100,*) "================================================================"
+    write(100,*)
+    write(100,*) "       >>>>>>>>>>  Charge Transport Integral  <<<<<<<<<         "
+    write(100,*)
+    write(100,"(A,I5)") "   MO1 ----  HOMO-1 :",Nocc1-1
+    write(100,"(A,I5)") "             HOMO   :",Nocc1                
+    write(100,"(A,I5)") "             LUMO   :",Nocc1+1
+    write(100,"(A,I5)") "             LUMO+1 :",Nocc1+2 
+    write(100,*)
+    write(100,"(A,I5)") "   MO2 ----  HOMO-1 :",Nocc2-1
+    write(100,"(A,I5)") "             HOMO   :",Nocc2                
+    write(100,"(A,I5)") "             LUMO   :",Nocc2+1
+    write(100,"(A,I5)") "             LUMO+1 :",Nocc2+2
+    write(100,*)
+    write(100,*) "  MO1  MO2     ee1(eV)      ee2(eV)       Je(eV)    Je(kcal/mol)"
+    write(100,*)
+    
+    if( CTIout == 1 ) then
+       iStar = Nocc1-1
+       iEnd  = Nocc1+2
+       jStar = Nbas1+Nocc2-1
+       jEnd  = Nbas1+Nocc2+2
+    else
+       iStar = 1
+       iEnd  = Nbas1
+       jStar = Nbas1+1
+       jEnd  = Nbas
+    end if
+    
+    do i = iStar,iEnd
+       do j = jStar,jEnd
           e1 = MTemp1(i,i)
           e2 = MTemp1(j,j)
           J12 = MTemp1(j,i)
@@ -114,9 +146,7 @@ subroutine Calculate_Charge_Transport(Nbas,Nbas1,MoCu,Overlap,Hamilton)
           ee1 = 0.5d0*((e1+e2)-2*J12*S12 + (e1-e2)*dsqrt(1-S12**2))/(1-S12**2)
           ee2 = 0.5d0*((e1+e2)-2*J12*S12 - (e1-e2)*dsqrt(1-S12**2))/(1-S12**2)
           Je12 = (J12 - 0.5d0*(e1 + e2)*S12)/(1 - S12**2)
-          write(100,"(2I5)") i,j-Nbas1
-          write(100,"(10F12.5)") e1,e2,J12*1000,S12
-          write(100,"(10F12.5)") ee1,ee2,Je12*1000,Je12*23.05d0
+          write(100,"(2I5,10F13.4)") i,j-Nbas1,ee1,ee2,Je12,Je12*23.05d0
        end do
     end do
 		
@@ -401,3 +431,4 @@ subroutine Head_Prient(t1,d1)
     
 end subroutine Head_Prient
 !=======================================================================
+
